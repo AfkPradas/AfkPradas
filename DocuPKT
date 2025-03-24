@@ -1,0 +1,103 @@
+# Configuració i Verificació d'una VPN IPsec Site-to-Site amb CLI
+
+## Topologia
+
+### Taula d'adreces
+| Dispositiu | Interfície | Adreça IP | Màscara de subxarxa | Passarel·la per defecte |
+|------------|------------|--------------|----------------|---------------------|
+| R1 | G0/0 | 192.168.1.1 | 255.255.255.0 | N/A |
+| R1 | S0/0/0 | 10.1.1.2 | 255.255.255.252 | N/A |
+| R2 | G0/0 | 192.168.2.1 | 255.255.255.0 | N/A |
+| R2 | S0/0/0 | 10.1.1.1 | 255.255.255.252 | N/A |
+| R2 | S0/0/1 | 10.2.2.1 | 255.255.255.252 | N/A |
+| R3 | G0/0 | 192.168.3.1 | 255.255.255.0 | N/A |
+| R3 | S0/0/1 | 10.2.2.2 | 255.255.255.252 | N/A |
+
+## Objectius
+- Verificar la connectivitat de la xarxa.
+- Configurar R1 i R3 per a suportar una VPN IPsec site-to-site.
+
+## Escenari
+Es configura una VPN IPsec entre R1 i R3 a través de R2, que actua com a intermediari sense coneixement del túnel VPN.
+
+## Configuració de la VPN IPsec
+
+### Paràmetres de la Fase 1 (ISAKMP)
+- Xifratge: AES 256
+- Algorisme de hash: SHA-1
+- Autenticació: Clau precompartida (`vpnpa55`)
+- Intercanvi de claus: DH Group 5
+- Temps de vida SA IKE: 86400 segons
+
+### Paràmetres de la Fase 2 (IPsec)
+- Nom del conjunt de transformació: `VPN-SET`
+- Xifratge ESP: `esp-aes`
+- Autenticació ESP: `esp-sha-hmac`
+- IP del peer: `10.2.2.2` per R1, `10.1.1.2` per R3
+- Llista d'accés per tràfic xifrat: `ACL 110`
+- Mapa criptogràfic: `VPN-MAP`
+
+### Configuració a R1
+1. Verificar connectivitat amb `ping`.
+2. Habilitar el paquet Security Technology.
+3. Definir tràfic interessant amb `access-list 110 permit ip 192.168.1.0 0.0.0.255 192.168.3.0 0.0.0.255`.
+4. Configurar ISAKMP:
+   ```
+   R1(config)# crypto isakmp policy 10
+   R1(config-isakmp)# encryption aes 256
+   R1(config-isakmp)# authentication pre-share
+   R1(config-isakmp)# group 5
+   R1(config)# crypto isakmp key vpnpa55 address 10.2.2.2
+   ```
+5. Configurar IPsec:
+   ```
+   R1(config)# crypto ipsec transform-set VPN-SET esp-aes esp-sha-hmac
+   R1(config)# crypto map VPN-MAP 10 ipsec-isakmp
+   R1(config-crypto-map)# set peer 10.2.2.2
+   R1(config-crypto-map)# set transform-set VPN-SET
+   R1(config-crypto-map)# match address 110
+   ```
+6. Aplicar el mapa criptogràfic a la interfície:
+   ```
+   R1(config)# interface s0/0/0
+   R1(config-if)# crypto map VPN-MAP
+   ```
+
+### Configuració a R3
+1. Habilitar el paquet Security Technology.
+2. Definir tràfic interessant:
+   ```
+   R3(config)# access-list 110 permit ip 192.168.3.0 0.0.0.255 192.168.1.0 0.0.0.255
+   ```
+3. Configurar ISAKMP:
+   ```
+   R3(config)# crypto isakmp policy 10
+   R3(config-isakmp)# encryption aes 256
+   R3(config-isakmp)# authentication pre-share
+   R3(config-isakmp)# group 5
+   R3(config)# crypto isakmp key vpnpa55 address 10.1.1.2
+   ```
+4. Configurar IPsec:
+   ```
+   R3(config)# crypto ipsec transform-set VPN-SET esp-aes esp-sha-hmac
+   R3(config)# crypto map VPN-MAP 10 ipsec-isakmp
+   R3(config-crypto-map)# set peer 10.1.1.2
+   R3(config-crypto-map)# set transform-set VPN-SET
+   R3(config-crypto-map)# match address 110
+   ```
+5. Aplicar el mapa criptogràfic a la interfície:
+   ```
+   R3(config)# interface s0/0/1
+   R3(config-if)# crypto map VPN-MAP
+   ```
+
+## Verificació de la VPN IPsec
+1. Abans del tràfic, comprovar estat amb `show crypto ipsec sa`.
+2. Generar tràfic interessant fent `ping` des de PC-A a PC-C.
+3. Tornar a comprovar estat amb `show crypto ipsec sa`.
+4. Generar tràfic no interessant amb `ping` des de PC-A a PC-B.
+5. Verificar que el tràfic no interessant no xifra paquets.
+6. Assegurar-se que el progrés de la configuració és del 100%.
+
+Aquest document resumeix la configuració d'una VPN IPsec site-to-site entre R1 i R3 mitjançant CLI en Packet Tracer.
+
