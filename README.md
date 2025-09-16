@@ -1,5 +1,5 @@
 # 💫 About Me:
-Python Junior programmer, CCNA-1 in progress, FP Microinformatic Sistems and Networks.
+Python Junior programmer, CCNA-1 in progress, ASIX Cybersecurity & SMX.
 I have made FiveM Roleplay Servers in Lua, and discord server moderator
 
 
